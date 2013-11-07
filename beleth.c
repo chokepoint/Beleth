@@ -24,6 +24,7 @@
 char *sock_file = "beleth.sock";
 char username[50] = "root";
 char cmdline[256] = "uname -a && id";
+unsigned int sleep_timeout = 1000; /* used for usleep on reconnects */
 
 /* 
  * Add each line of the wordlist to the linked list
@@ -81,7 +82,7 @@ void crack_thread(struct t_ctx *c_thread) {
 		session_cleanup(c_thread->sock, c_thread->session);
 		c_thread->session = libssh2_session_init();
 		
-		sleep(1);
+		usleep(sleep_timeout);
 	}
 	
 	while (1) {
@@ -105,15 +106,14 @@ void crack_thread(struct t_ctx *c_thread) {
 		if ((rc=libssh2_userauth_password(c_thread->session, username, buf))) {
 			if (rc != LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
 					session_cleanup(c_thread->sock, c_thread->session);
-					
 					c_thread->session = libssh2_session_init();
 					
 					while ( (c_thread->sock = session_init(c_thread->host,c_thread->port, c_thread->session)) == -1) {
 						if (verbose >= VERBOSE_DEBUG) 
 							fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",c_thread->host,c_thread->port);	
 						session_cleanup(c_thread->sock,c_thread->session);
-						
-						sleep(1);
+						c_thread->session = libssh2_session_init();
+						usleep(sleep_timeout);
 					}
 			}
 		} else {
@@ -233,7 +233,6 @@ void init_pw_tasker(int unix_fd, int threads) {
 							if (current_pw == NULL) {
 								memset(buf,0x00, sizeof(buf));
 								buf[0] = NO_PW;
-								buf[1] = '\n';
 								write(rc,buf,strlen(buf));
 								++child_count;
 								if (verbose >= VERBOSE_DEBUG)

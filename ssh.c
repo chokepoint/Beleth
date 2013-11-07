@@ -83,7 +83,7 @@ int session_init(char *host, int port, LIBSSH2_SESSION *session) {
         return -1;
 	}
 
-	libssh2_session_set_timeout(session, 5000);
+	libssh2_session_set_timeout(session, 4000);
 
 	if ((rc=libssh2_session_handshake(session, sock))) {
 		if (verbose >= VERBOSE_DEBUG)
