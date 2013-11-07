@@ -78,16 +78,14 @@ void destroy_pw_list(void) {
 }
 
 /* 
- * Initiate the linked list with the first element
+ * Initiate the thread context
  * Returns -1 on error. 1 on success
  */
-int init_thread_list(pid_t pid, char *host, int port) {
-    struct t_ctx *ptr = (struct t_ctx*)malloc(sizeof(struct t_ctx));
-
+int init_thread_ctx(char *host, int port, struct t_ctx *ptr) {
     if(ptr == NULL)
     {
 		if (verbose >= VERBOSE_DEBUG)
-			fprintf(stderr,"[!] Creating thread linked list failed.\n");
+			fprintf(stderr,"[!] Null pointer passed to init_thread_ctx.\n");
         return -1;
     }
     
@@ -96,58 +94,10 @@ int init_thread_list(pid_t pid, char *host, int port) {
 		return -1;
 	}
 	
-	ptr->pid = pid;
 	ptr->port = port;
     strncpy(ptr->host,host,sizeof(ptr->host)-1);
     ptr->session = libssh2_session_init();
-    ptr->next = NULL;
 
-    t_head = t_tail = ptr;
+    t_current = ptr;
     return 1;	
-}
-
-/*
- * Add entry to the end of the thread list
- * Returns -1 on error. 1 on success
- */
-int add_thread_list(pid_t pid, char *host, int port) {
-	if(t_head == NULL)  
-        return (init_thread_list(pid, host, port));
-	
-    struct t_ctx *ptr = (struct t_ctx*)malloc(sizeof(struct t_ctx));
-    if(ptr == NULL) {
-		if (verbose >= VERBOSE_DEBUG)
-			fprintf(stderr,"[!] Couldn't add thread to list.\n");
-        return -1;
-    }
-    
-    if ((ptr->fd = connect_sock()) == -1) {
-		free(ptr);
-		return -1;
-	}
-	
-    ptr->pid = pid;
-    ptr->port = port;
-    strncpy(ptr->host,host,sizeof(ptr->host)-1);
-    ptr->session = libssh2_session_init();
-    ptr->next = NULL;
-	
-    t_tail->next = ptr;
-    t_tail = ptr;
-
-    return 1;
-}
-
-/*
- * Destroy the linked list and free the memory
- */
-void destroy_thread_list(void) {
-	struct t_ctx *ptr = t_head;
-	
-	while (ptr != NULL) {
-		session_cleanup(ptr->sock,ptr->session);
-		ptr = t_head->next;
-		free(t_head);
-		t_head = ptr;
-	}
 }
