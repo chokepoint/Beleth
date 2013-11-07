@@ -11,5 +11,11 @@ Usage: ./beleth [OPTIONS]
 	-w [wordlist]	Use this wordlist. Defaults to wordlist.txt
 
 Example:
-	./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
 
+┌─[stderr@eclipse]─[~/development/beleth]
+└──╼ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
+[*] Read 71 passwords from file.
+[*] Starting task manager
+[*] Spawning 15 threads
+[*] Starting attack on stderr@127.0.0.1:22
+[!] No password matches found.
