@@ -122,9 +122,8 @@ void crack_thread(struct t_ctx *c_thread) {
 				if (verbose >= VERBOSE_DEBUG)
 					fprintf(stderr, "Error executing command.\n");
 			}   
-			memset(buf,0x00,sizeof(buf));
 			buf[0] = FND_PW;
-			buf[1] = '\n';
+			buf[1] = '\0';
 			write(c_thread->fd,buf,strlen(buf));
 			return;
 			break;
@@ -231,8 +230,8 @@ void init_pw_tasker(int unix_fd, int threads) {
 					switch(buf[0]) {
 						case REQ_PW:
 							if (current_pw == NULL) {
-								memset(buf,0x00, sizeof(buf));
 								buf[0] = NO_PW;
+								buf[1] = '\0';
 								write(rc,buf,strlen(buf));
 								++child_count;
 								if (verbose >= VERBOSE_DEBUG)
@@ -327,7 +326,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m+                 Beleth                  +\e[0m\n\e[40m\e[32m+           www.chokepoint.net            +\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
+	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
 	
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
