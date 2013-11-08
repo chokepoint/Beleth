@@ -2,7 +2,9 @@ Beleth
 ======
 
 Dictionary based SSH cracker
+----------------------------
 
+```
 Usage: ./beleth [OPTIONS]
 	-c [payload]	Execute payload on remote server once logged in
 	-h				Display this help
@@ -21,4 +23,4 @@ $ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
 [*] Spawning 15 threads
 [*] Starting attack on stderr@127.0.0.1:22
 [!] No password matches found.
-
+```
