@@ -24,7 +24,7 @@
 char *sock_file = "beleth.sock";
 char username[50] = "root";
 char cmdline[256] = "uname -a && id";
-unsigned int sleep_timeout = 1000; /* used for usleep on reconnects */
+unsigned int sleep_timeout = 400; /* used for usleep on reconnects */
 
 /* 
  * Add each line of the wordlist to the linked list
@@ -237,6 +237,8 @@ void init_pw_tasker(int unix_fd, int threads) {
 								++child_count;
 								if (verbose >= VERBOSE_DEBUG)
 									fprintf(stderr,"Killing child muahaha: %d / %d\n",child_count,threads);
+								if (child_count == 1) /* First child cleaned up */
+									printf("[*] Cleaning up child processes.\n");
 								if (child_count == threads) {
 									close(unix_fd);
 									unlink(sock_file);
@@ -324,6 +326,8 @@ int main(int argc, char *argv[]) {
 		print_help(argv[0]);
 		exit(1);
 	}
+	
+	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m+                 Beleth                  +\e[0m\n\e[40m\e[32m+           www.chokepoint.net            +\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
 	
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
