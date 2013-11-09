@@ -4,18 +4,8 @@
  */ 
  
 #include <libssh2.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <sys/un.h>
-#include <time.h>
-#include <sys/wait.h>
 
 #include "beleth.h"
 #include "lists.h"
@@ -72,7 +62,8 @@ void destroy_pw_list(void) {
 	
 	while (ptr != NULL) {
 		ptr = pw_head->next;
-		free(pw_head);
+		if (pw_head != NULL)
+			free(pw_head);
 		pw_head = ptr;
 	}
 }
@@ -90,7 +81,8 @@ int init_thread_ctx(char *host, int port, struct t_ctx *ptr) {
     }
     
     if ((ptr->fd = connect_sock()) == -1) {
-		free(ptr);
+		if (ptr != NULL)
+			free(ptr);
 		return -1;
 	}
 	

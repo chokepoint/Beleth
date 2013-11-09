@@ -6,10 +6,7 @@
 #include <libssh2.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <errno.h>
 
 #include "beleth.h"
 #include "ssh.h"
@@ -36,7 +33,6 @@ int waitsocket(int socket_fd, LIBSSH2_SESSION *session) {
  
     /* now make sure we wait in the correct direction */ 
     dir = libssh2_session_block_directions(session);
-
  
     if(dir & LIBSSH2_SESSION_BLOCK_INBOUND)
         readfd = &fd;
@@ -128,7 +124,7 @@ int drop_payload(int sock, LIBSSH2_SESSION *session, char *cmdline) {
 			rc = libssh2_channel_read( channel, buffer, sizeof(buffer) );
 			
 			if (rc > 0)
-				printf("%s",buffer);
+				printf("[*] %s",buffer);
 		}while (rc > 0);
 		
 		if ( rc == LIBSSH2_ERROR_EAGAIN )
