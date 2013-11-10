@@ -18,9 +18,15 @@ Usage: ./beleth [OPTIONS]
 Example:
 
 $ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
-[*] Read 71 passwords from file.
++-----------------------------------------+
+|                 Beleth                  |
+|           www.chokepoint.net            |
++-----------------------------------------+
+[*] Read 25 passwords from file.
 [*] Starting task manager
 [*] Spawning 15 threads
-[*] Starting attack on stderr@127.0.0.1:22
-[!] No password matches found.
-```
+[*] Starting attack on root@127.0.0.1:22
+[*] Authentication succeeded (root:jesus@127.0.0.1:22)
+[*] Executing: uname -a
+[*] Linux eclipse 3.2.0-4-686-pae #1 SMP Debian 3.2.46-1+deb7u1 i686 GNU/Linux
+[*] Cleaning up child processes.
