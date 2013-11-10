@@ -34,5 +34,5 @@ $ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
 
 Resources
 =========
-www.chokepoint.net
-www.blackhatlibrary.net
+* www.chokepoint.net
+* www.blackhatlibrary.net
