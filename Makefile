@@ -1,16 +1,19 @@
+CC=cc
+CFLAGS=-Wall -I/usr/local/include
+
 all: beleth
 
 beleth: beleth.o lists.o ssh.o
-	gcc beleth.o lists.o ssh.o -o beleth -lssh2
+	$(CC) beleth.o lists.o ssh.o -o beleth -lssh2 -L/usr/local/lib
 
 beleth.o: beleth.c
-	gcc -Wall -c beleth.c 
+	$(CC) $(CFLAGS) -c beleth.c
 
 lists.o: lists.c
-	gcc -Wall -c lists.c
+	$(CC) $(CFLAGS) -c lists.c
 
 ssh.o: ssh.c
-	gcc -Wall -c ssh.c
+	$(CC) $(CFLAGS) -c ssh.c
 
 clean:
 	rm *.o beleth
