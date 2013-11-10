@@ -30,3 +30,8 @@ $ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
 [*] Executing: uname -a
 [*] Linux eclipse 3.2.0-4-686-pae #1 SMP Debian 3.2.46-1+deb7u1 i686 GNU/Linux
 [*] Cleaning up child processes.
+
+Resources
+=========
+www.chokepoint.net
+www.blackhatlibrary.net
