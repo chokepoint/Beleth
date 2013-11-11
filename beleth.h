@@ -1,8 +1,8 @@
 /*
  * Beleth - SSH Dictionary Attack
  * beleth.h -- Main header and function declaration
- */ 
- 
+ */
+
 #ifndef BELETH_H
 #define BELETH_H
 
