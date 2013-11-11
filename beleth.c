@@ -21,24 +21,6 @@ char username[50] = "root";
 char cmdline[256] = "uname -a && id";
 unsigned int sleep_timeout = 400; /* used for usleep on reconnects */
 
-struct printTextFormat {
-	char *tlc; /* top left corner */
-	char *trc; /* top right corner */
-	char *blc; /* bottom left corner */
-	char *brc; /* bottom right corner */
-	char *hrb; /* horizontal bar */
-	char *vrb; /* vertical bar */
-} utf8format = {
-	"\342\224\214", /* ┌ */
-	"\342\224\220", /*  ┐*/
-	"\342\224\224", /*└  */
-	"\342\224\230", /* ┘ */
-	"\342\224\200", /* ─ */
-	"\342\224\202"  /* │ */
-};
-
-
-
 /*
  * Add each line of the wordlist to the linked list
  */
@@ -340,26 +322,9 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	/* Print utf8 banner 42 with */
-	printf("\e[32m\e[40m");
-	printf("%s", utf8format.tlc);
-	for (i = 0; i < 40; ++i)
-		printf("%s", utf8format.hrb);
-	printf("%s\n", utf8format.trc);
-
-	printf("%s", utf8format.vrb);
-	printf("                 Beleth                 ");
-	printf("%s\n", utf8format.vrb);
-
-	printf("%s", utf8format.vrb);
-	printf("          www.chokepoint.net            ");
-	printf("%s\n", utf8format.vrb);
-
-	printf("%s", utf8format.blc);
-	for (i = 0; i < 40; ++i)
-		printf("%s", utf8format.hrb);
-	printf("%s", utf8format.brc);
-	printf("\e[0m\n");
+	/* Print banner */
+	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n");
+	printf("\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
 
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
