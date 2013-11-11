@@ -1,7 +1,7 @@
 /*
  * Beleth - SSH Dictionary Attack
  * lists.h -- Linked list header
- */ 
+ */
 
 #ifndef LISTS_H
 #define LISTS_H
@@ -10,7 +10,7 @@
 #define MAX_PW_LENGTH 51
 
 /* thread context structure */
-struct t_ctx 
+struct t_ctx
 {
 	int sock; 				/* SSH connection socket */
 	int fd; 				/* Unix IPC Socket */
