@@ -60,6 +60,40 @@ void print_help(char *cmd) {
 	fprintf(stderr,"\t-w [wordlist]\tUse this wordlist. Defaults to wordlist.txt\n");
 }
 
+/* Display banner */
+void print_banner()
+{
+	int i;
+	int with = 40;
+	struct printTextFormat utf8format = {
+		"\342\224\214", /* ┌ */
+		"\342\224\220", /*  ┐*/
+		"\342\224\224", /*└  */
+		"\342\224\230", /* ┘ */
+		"\342\224\200", /* ─ */
+		"\342\224\202"  /* │ */
+	};
+
+	printf("\e[32m\e[40m");
+	printf("%s", utf8format.tlc);
+	for (i = 0; i < with; ++i)
+		printf("%s", utf8format.hrb);
+	printf("%s\n", utf8format.trc);
+
+	printf("%s", utf8format.vrb);
+	printf("                 Beleth                 ");
+	printf("%s\n", utf8format.vrb);
+
+	printf("%s", utf8format.vrb);
+	printf("          www.chokepoint.net            ");
+	printf("%s\n", utf8format.vrb);
+
+	printf("%s", utf8format.blc);
+	for (i = 0; i < with; ++i)
+		printf("%s", utf8format.hrb);
+	printf("%s", utf8format.brc);
+	printf("\e[0m\n");
+}
 /*
  * crack_thread
  * Called as the child process of fork.
@@ -323,8 +357,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Print banner */
-	printf("\e[32m\e[40m+-----------------------------------------+\e[0m\n\e[40m\e[32m|                 Beleth                  |\e[0m\n");
-	printf("\e[40m\e[32m|           www.chokepoint.net            |\e[0m\n\e[40m\e[32m+-----------------------------------------+\e[0m\n");
+	print_banner();
 
 	/* Initiate the linked list using the given wordlist */
     if (read_wordlist(str_wordlist) == -1)
