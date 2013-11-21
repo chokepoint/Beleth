@@ -19,32 +19,32 @@
  * Used while dropping the payload and waiting for the response.
  */
 int waitsocket(int socket_fd, LIBSSH2_SESSION *session) {
-    int rc;
-    int dir;
-    fd_set fd;
-    fd_set *writefd = NULL;
-    fd_set *readfd = NULL;
-    struct timeval timeout = {
-	    .tv_sec = 10, /* 10 seconds at most */
-	    .tv_usec = 0  /* nanoseconds */
-    };
+	int rc;
+	int dir;
+	fd_set fd;
+	fd_set *writefd = NULL;
+	fd_set *readfd = NULL;
+	struct timeval timeout = {
+		.tv_sec = 10, /* 10 seconds at most */
+		.tv_usec = 0  /* nanoseconds */
+	};
 
-    FD_ZERO(&fd);
+	FD_ZERO(&fd);
 
-    FD_SET(socket_fd, &fd);
+	FD_SET(socket_fd, &fd);
 
-    /* now make sure we wait in the correct direction */
-    dir = libssh2_session_block_directions(session);
+	/* now make sure we wait in the correct direction */
+	dir = libssh2_session_block_directions(session);
 
-    if(dir & LIBSSH2_SESSION_BLOCK_INBOUND)
-        readfd = &fd;
+	if(dir & LIBSSH2_SESSION_BLOCK_INBOUND)
+		readfd = &fd;
 
-    if(dir & LIBSSH2_SESSION_BLOCK_OUTBOUND)
-        writefd = &fd;
+	if(dir & LIBSSH2_SESSION_BLOCK_OUTBOUND)
+		writefd = &fd;
 
-    rc = select(socket_fd + 1, readfd, writefd, NULL, &timeout);
+	rc = select(socket_fd + 1, readfd, writefd, NULL, &timeout);
 
-    return rc;
+	return rc;
 }
 
 /*
@@ -52,8 +52,8 @@ int waitsocket(int socket_fd, LIBSSH2_SESSION *session) {
  */
 void session_cleanup(int sock, LIBSSH2_SESSION *session) {
 	libssh2_session_disconnect(session, "exit");
-    libssh2_session_free(session);
-    close(sock);
+	libssh2_session_free(session);
+	close(sock);
 }
 
 /*
@@ -71,14 +71,14 @@ int session_init(char *host, int port, LIBSSH2_SESSION *session) {
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    sin.sin_addr.s_addr = hostaddr;
-    if (connect(sock, (struct sockaddr*)(&sin),
-                sizeof(struct sockaddr_in)) != 0) {
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	sin.sin_addr.s_addr = hostaddr;
+	if (connect(sock, (struct sockaddr*)(&sin),
+				sizeof(struct sockaddr_in)) != 0) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr,"[!] Connect error\n");
-        return -1;
+		return -1;
 	}
 
 	libssh2_session_set_timeout(session, 4000);
@@ -103,14 +103,14 @@ int drop_payload(int sock, LIBSSH2_SESSION *session, char *cmdline) {
 	LIBSSH2_CHANNEL *channel;
 
 	/* Request a shell */
-    if (!(channel = libssh2_channel_open_session(session))) {
+	if (!(channel = libssh2_channel_open_session(session))) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Unable to open a session\n");
-        session_cleanup(sock, session);
-    }
+		session_cleanup(sock, session);
+	}
 
-    /* Execute cmdline remotely and display response */
-    while ( ( rc = libssh2_channel_exec(channel, cmdline) ) == LIBSSH2_ERROR_EAGAIN )
+	/* Execute cmdline remotely and display response */
+	while ( ( rc = libssh2_channel_exec(channel, cmdline) ) == LIBSSH2_ERROR_EAGAIN )
 		waitsocket(sock,session);
 
 	if (rc != 0) {
@@ -139,10 +139,10 @@ int drop_payload(int sock, LIBSSH2_SESSION *session, char *cmdline) {
 		waitsocket(sock,session);
 
 	if (channel) {
-        libssh2_channel_free(channel);
+		libssh2_channel_free(channel);
 
-        channel = NULL;
-    }
+		channel = NULL;
+	}
 
 	return 1;
 }

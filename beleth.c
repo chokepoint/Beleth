@@ -106,7 +106,7 @@ void crack_thread(struct t_ctx *c_thread) {
 		fprintf(stderr, "[*] (%d) Connecting to: %s:%d\n",getpid(),c_thread->host,c_thread->port);
 
 
-    while ((c_thread->sock = session_init(c_thread->host,c_thread->port,c_thread->session)) == -1) {
+	while ((c_thread->sock = session_init(c_thread->host,c_thread->port,c_thread->session)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr,"[!] Unable to connect to %s:%d\n",c_thread->host,c_thread->port);
 		session_cleanup(c_thread->sock, c_thread->session);
@@ -136,7 +136,7 @@ void crack_thread(struct t_ctx *c_thread) {
 			if (rc != LIBSSH2_ERROR_AUTHENTICATION_FAILED) {
 					session_cleanup(c_thread->sock, c_thread->session);
 					c_thread->session = libssh2_session_init();
-	
+
 					while ( (c_thread->sock = session_init(c_thread->host,c_thread->port, c_thread->session)) == -1) {
 						if (verbose >= VERBOSE_DEBUG)
 							fprintf(stderr, "[!] Unable to reconnect to %s:%d\n",c_thread->host,c_thread->port);
@@ -215,11 +215,11 @@ int connect_sock(void) {
 		return -1;
 	}
 
-    memset(&addr,0x00,sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
+	memset(&addr,0x00,sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, sock_file, sizeof(addr.sun_path)-1);
 
-    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+	if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
 		if (verbose >= VERBOSE_DEBUG)
 			fprintf(stderr, "[!] Error connecting to UNIX socket\n");
 		return -1;
@@ -275,7 +275,7 @@ void init_pw_tasker(int unix_fd, int threads) {
 									if (auth == 0)
 										printf("[!] No password matches found.\n");
 									exit(0);
-								}					
+								}
 							} else {
 								write(rc, current_pw->pw, strlen(current_pw->pw));
 								current_pw = current_pw->next;
@@ -296,10 +296,10 @@ void init_pw_tasker(int unix_fd, int threads) {
 }
 
 int main(int argc, char *argv[]) {
-    int rc, remote_port = 22, c_opt;
-    int threads = 10, unix_fd, i;
+	int rc, remote_port = 22, c_opt;
+	int threads = 10, unix_fd, i;
 
-    char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
+	char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
 	pid_t pid, task_pid;
 
 	verbose = 0;
@@ -310,7 +310,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-    if (argc > 1) {
+	if (argc > 1) {
 		while ((c_opt = getopt(argc, argv, "hvp:t:u:w:c:l:")) != -1) {
 			switch(c_opt) {
 					case 'h':
@@ -351,7 +351,7 @@ int main(int argc, char *argv[]) {
 						exit(1);
 			}
 		}
-    } else {
+	} else {
 		print_help(argv[0]);
 		exit(1);
 	}
@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
 	print_banner();
 
 	/* Initiate the linked list using the given wordlist */
-    if (read_wordlist(str_wordlist) == -1)
+	if (read_wordlist(str_wordlist) == -1)
 		return 1;
 
 	printf("[*] Starting task manager\n");
@@ -393,7 +393,7 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "[!] Couldn't fork!\n");
 			destroy_pw_list();
 			exit(1);
-		} else if (pid == 0)  { 				/* child thread */
+		} else if (pid == 0)  {					/* child thread */
 			crack_thread(t_current);
 
 			if (ptr != NULL)
@@ -410,5 +410,5 @@ int main(int argc, char *argv[]) {
 	/* proper cleanup */
 	destroy_pw_list();
 	libssh2_exit();
-    return 0;
+	return 0;
 }
