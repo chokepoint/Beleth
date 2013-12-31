@@ -12,8 +12,8 @@
 /* thread context structure */
 struct t_ctx
 {
-	int sock; 				/* SSH connection socket */
-	int fd; 				/* Unix IPC Socket */
+	int sock;				/* SSH connection socket */
+	int fd;					/* Unix IPC Socket */
 	int port;
 	char host[21];
 	LIBSSH2_SESSION *session;
