@@ -54,6 +54,7 @@ void print_help(char *cmd) {
 	fprintf(stderr,"\t-h\t\tDisplay this help\n");
 	fprintf(stderr,"\t-l [threads]\tLimit threads to given number. Default: 10\n");
 	fprintf(stderr,"\t-p [port]\tSpecify remote port\n");
+	fprintf(stderr,"\t-P [password]\tUse single password attempt\n");
 	fprintf(stderr,"\t-t [target]\tAttempt connections to this server\n");
 	fprintf(stderr,"\t-u [user]\tAttempt connection using this username\n");
 	fprintf(stderr,"\t-v\t\t-v (Show attempts) -vv (Show debugging)\n");
@@ -156,7 +157,6 @@ void crack_thread(struct t_ctx *c_thread) {
 			buf[1] = '\0';
 			write(c_thread->fd,buf,strlen(buf));
 			return;
-			break;
 		}
 	}
 }
@@ -298,7 +298,8 @@ void init_pw_tasker(int unix_fd, int threads) {
 int main(int argc, char *argv[]) {
 	int rc, remote_port = 22, c_opt;
 	int threads = 10, unix_fd, i;
-
+	int single_pw = 0;
+	
 	char host[21] = "127.0.0.1", str_wordlist[256] = "wordlist.txt";
 	pid_t pid, task_pid;
 
@@ -311,7 +312,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (argc > 1) {
-		while ((c_opt = getopt(argc, argv, "hvp:t:u:w:c:l:")) != -1) {
+		while ((c_opt = getopt(argc, argv, "hvp:t:u:w:c:l:P:")) != -1) {
 			switch(c_opt) {
 					case 'h':
 						print_help(argv[0]);
@@ -346,6 +347,10 @@ int main(int argc, char *argv[]) {
 							exit(1);
 						}
 						break;
+					case 'P':
+						threads = single_pw = 1;
+						add_pw_list(optarg);
+						break;
 					default:
 						fprintf(stderr, "[!] Invalid option %c\n",c_opt);
 						exit(1);
@@ -360,9 +365,13 @@ int main(int argc, char *argv[]) {
 	print_banner();
 
 	/* Initiate the linked list using the given wordlist */
-	if (read_wordlist(str_wordlist) == -1)
-		return 1;
-
+	if (!single_pw) {
+		if (read_wordlist(str_wordlist) == -1)
+			return 1;
+	} else {
+		printf("[*] Loaded one password\n");
+	}
+	
 	printf("[*] Starting task manager\n");
 	/* Listen to UNIX socket for IPC */
 	if ((unix_fd = listen_sock(threads)) == -1) {
