@@ -10,6 +10,7 @@ Usage: ./beleth [OPTIONS]
 	-h				Display this help
 	-l [threads]	Limit threads to given number. Default: 4
 	-p [port]		Specify remote port
+	-P [password]	Use single password attempt
 	-t [target]		Attempt connections to this server
 	-u [user]		Attempt connection using this username
 	-v				-v (Show attempts) -vv (Show debugging)
@@ -18,10 +19,10 @@ Usage: ./beleth [OPTIONS]
 Example:
 
 $ ./beleth -l 15 -t 127.0.0.1 -u stderr -w wordlist.txt
-+-----------------------------------------+
-|                 Beleth                  |
-|           www.chokepoint.net            |
-+-----------------------------------------+
+┌────────────────────────────────────────┐
+│                 Beleth                 │
+│          www.chokepoint.net            │
+└────────────────────────────────────────┘
 [*] Read 25 passwords from file.
 [*] Starting task manager
 [*] Spawning 15 threads
