@@ -1,5 +1,9 @@
-CFLAGS  = -Wall -I/usr/local/include
-LDFLAGS = -L/usr/local/lib/ -lssh2
+CFLAGS      = -Wall -I/usr/local/include
+LDFLAGS     = -L/usr/local/lib/ -lssh2
+
+prefix      = /usr/local
+exec_prefix = $(prefix)
+bindir      = $(exec_prefix)/bin
 
 all: beleth
 
@@ -12,7 +16,14 @@ lists.o: lists.c
 
 ssh.o: ssh.c
 
+install:
+	install -d $(DESTDIR)$(bindir)
+	install -m 0755 beleth $(DESTDIR)$(bindir)
+
+uninstall:
+	-rm $(DESTDIR)$(bindir)/beleth
+
 clean:
 	-rm *.o beleth
 
-.PHONY: clean
+.PHONY: clean install uninstall
