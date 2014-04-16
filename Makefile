@@ -1,10 +1,10 @@
-CFLAGS+=	-Wall -I/usr/local/include
-LDFLAGS+=	-L/usr/local/lib/ -lssh2
+CFLAGS  = -Wall -I/usr/local/include
+LDFLAGS = -L/usr/local/lib/ -lssh2
 
 all: beleth
 
 beleth: beleth.o lists.o ssh.o
-	$(CC) beleth.o lists.o ssh.o $(LDFLAGS) -o beleth
+	$(CC) beleth.o lists.o ssh.o $(LDFLAGS) -o $@
 
 beleth.o: beleth.c
 
@@ -13,4 +13,6 @@ lists.o: lists.c
 ssh.o: ssh.c
 
 clean:
-	rm *.o beleth
+	-rm *.o beleth
+
+.PHONY: clean
